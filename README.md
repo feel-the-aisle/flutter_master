@@ -1,10 +1,10 @@
 # probono_project
 
-A new Flutter project.
+프로보노 공모전을 위한 '편안시선' 어플의 Flutter 코드입니다.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+This project is a starting point for a Flutter application(편안시선).
 
 A few resources to get you started if this is your first Flutter project:
 
