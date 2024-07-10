@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:probono_project/layout/touchpad_copilot.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:probono_project/layout/touchpad_map1.dart';
-import 'package:probono_project/screen/food_map/get_food_input.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:probono_project/screen/food_map/get_startshelf_input.dart';
+
+import 'get_startshelf_input.dart';
 
 class GetStoreInput extends StatefulWidget {
   const GetStoreInput({super.key});
@@ -14,8 +15,9 @@ class GetStoreInput extends StatefulWidget {
 
 class _GetStoreInputState extends State<GetStoreInput> {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  String _recognizedText = '';
+  String _storeName = ''; // 편의점 이름 변수
   String _confirmationText = '';
+  String _finalResponse = ''; // 예/아니오 변수
   final FlutterTts tts = FlutterTts();
   String language = "ko-KR";
   Map<String, String> voice = {"name": "ko-kr-x-ism-local", "locale": "ko-KR"};
@@ -23,6 +25,7 @@ class _GetStoreInputState extends State<GetStoreInput> {
   double pitch = 1.0;
   double rate = 0.5;
   bool _isConfirming = false;
+  bool _awaitingFinalResponse = false;
 
   @override
   void initState() {
@@ -47,10 +50,19 @@ class _GetStoreInputState extends State<GetStoreInput> {
 
   void _updateRecognizedText(String text) {
     setState(() {
-      _recognizedText = text;
+      _storeName = text;
       _isConfirming = true;
       _confirmationText = '$text이 맞습니까? 맞으면 예, 다시 녹음을 원하면 아니오를 말씀하세요.';
       _speak(_confirmationText);
+      _awaitingFinalResponse = true;
+    });
+  }
+
+  void _updateFinalResponse(String text) {
+    setState(() {
+      _finalResponse = text;
+      _awaitingFinalResponse = false;
+      _handleConfirmation(text);
     });
   }
 
@@ -67,12 +79,17 @@ class _GetStoreInputState extends State<GetStoreInput> {
     if (text.toLowerCase() == '예') {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const GetFoodInput()),
+        MaterialPageRoute(
+          builder: (context) => GetStartShelf(storeName: _storeName), // 다음 화면에 편의점 이름 전달
+        ),
       );
     } else if (text.toLowerCase() == '아니오') {
       setState(() {
-        _recognizedText = '';
+        _storeName = '';
+        _confirmationText = '';
+        _finalResponse = '';
         _isConfirming = false;
+        _awaitingFinalResponse = false;
         _playAudio();
       });
     }
@@ -132,9 +149,7 @@ class _GetStoreInputState extends State<GetStoreInput> {
                         ),
                       ),
                       child: Text(
-                        _recognizedText.isEmpty
-                            ? ''
-                            : _recognizedText,
+                        _storeName.isEmpty ? '' : _storeName,
                         style: TextStyle(
                           fontSize: 23.0,
                           fontWeight: FontWeight.bold,
@@ -168,6 +183,28 @@ class _GetStoreInputState extends State<GetStoreInput> {
                             ),
                           ),
                         ),
+                        SizedBox(height: 40.0),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Container(
+                            padding: EdgeInsets.all(34.0),
+                            width: MediaQuery.of(context).size.width * 0.7,
+                            decoration: BoxDecoration(
+                              color: Colors.yellow[300],
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.circular(80.0),
+                              ),
+                            ),
+                            child: Text(
+                              _finalResponse.isEmpty ? '' : _finalResponse,
+                              style: TextStyle(
+                                fontSize: 23.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.right,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   SizedBox(height: 40.0),
@@ -178,9 +215,10 @@ class _GetStoreInputState extends State<GetStoreInput> {
           Expanded(
             flex: 1,
             child: TouchPad_Map1(
-              onTextRecognized: _isConfirming
-                  ? _handleConfirmation
+              onTextRecognized: _awaitingFinalResponse
+                  ? _updateFinalResponse
                   : _updateRecognizedText,
+              awaitingFinalResponse: _awaitingFinalResponse,
             ),
           ),
         ],

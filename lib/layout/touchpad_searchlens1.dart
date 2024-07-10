@@ -2,21 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-class TouchPad_Map1 extends StatefulWidget {
+class TouchPad_SearchLens1 extends StatefulWidget {
   final Function(String) onTextRecognized;
-  final bool awaitingFinalResponse; // 새 매개변수 추가
 
-  const TouchPad_Map1({
-    Key? key,
-    required this.onTextRecognized,
-    required this.awaitingFinalResponse,
-  }) : super(key: key);
+  const TouchPad_SearchLens1({Key? key, required this.onTextRecognized}) : super(key: key);
 
   @override
-  _TouchPad_Map1State createState() => _TouchPad_Map1State();
+  _TouchPad_SearchLens1State createState() => _TouchPad_SearchLens1State();
 }
 
-class _TouchPad_Map1State extends State<TouchPad_Map1> {
+class _TouchPad_SearchLens1State extends State<TouchPad_SearchLens1> {
   final AudioPlayer _effectPlayer = AudioPlayer();
   late stt.SpeechToText _speech;
   bool _isListening = false;
@@ -52,7 +47,7 @@ class _TouchPad_Map1State extends State<TouchPad_Map1> {
       onStatus: (val) {
         print('onStatus: $val');
         if (val == 'done') {
-          _stopListening();
+          _startListening();
         }
       },
       onError: (val) => print('onError: $val'),
@@ -61,12 +56,9 @@ class _TouchPad_Map1State extends State<TouchPad_Map1> {
       setState(() => _isListening = true);
       _speech.listen(
         onResult: (val) {
-          if (val.finalResult) {
-            setState(() {
-              widget.onTextRecognized(val.recognizedWords);
-              _stopListening();
-            });
-          }
+          setState(() {
+            widget.onTextRecognized(val.recognizedWords);
+          });
         },
         localeId: 'ko-KR', // 한국어 설정
         listenFor: Duration(hours: 1), // 장시간 녹음 설정

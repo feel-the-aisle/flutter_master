@@ -3,6 +3,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:probono_project/layout/touchpad_copilot.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:probono_project/layout/touchpad_map1.dart';
+import 'package:probono_project/layout/touchpad_searchlens1.dart';
 import 'package:probono_project/screen/search_lens/product_cam1.dart';
 
 class GetProductInput extends StatefulWidget {
@@ -134,7 +135,7 @@ class _GetProductInputState extends State<GetProductInput> {
           ),
           Expanded(
             flex: 1,
-            child: TouchPad_Map1(
+            child: TouchPad_SearchLens1(
               onTextRecognized: _updateRecognizedText,
             ),
           ),
