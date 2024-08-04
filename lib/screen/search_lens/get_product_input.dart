@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:probono_project/layout/touchpad_copilot.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:probono_project/layout/touchpad_map1.dart';
 import 'package:probono_project/layout/touchpad_searchlens1.dart';
-import 'package:probono_project/screen/search_lens/product_cam1.dart';
 
 class GetProductInput extends StatefulWidget {
   const GetProductInput({super.key});
@@ -119,16 +116,16 @@ class _GetProductInputState extends State<GetProductInput> {
                     ),
                   ),
                   SizedBox(height: 40.0),
-                  ElevatedButton(
-                    onPressed: (){
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ProductCam1(),
-                        ),
-                      );
-                    },
-                    child: Text('다음'),
-                  ),
+                  // ElevatedButton(
+                  //   onPressed: (){
+                  //     Navigator.of(context).push(
+                  //       MaterialPageRoute(
+                  //         builder: (_) => ProductCam1(),
+                  //       ),
+                  //     );
+                  //   },
+                  //   child: Text('다음'),
+                  // ),
                 ],
               ),
             ),

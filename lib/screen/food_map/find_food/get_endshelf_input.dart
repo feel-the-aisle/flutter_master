@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:probono_project/layout/touchpad_map1.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:probono_project/screen/food_map/get_startshelf_input.dart';
+import 'package:probono_project/layout/touchpad_map1.dart';
+import 'package:probono_project/screen/food_map/final_map.dart';
 
-import 'get_startshelf_input.dart';
+class GetEndShelf extends StatefulWidget {
+  final String storeName;
+  final String startShelf;
 
-class GetStoreInput extends StatefulWidget {
-  const GetStoreInput({super.key});
+  const GetEndShelf({super.key, required this.storeName, required this.startShelf});
 
   @override
-  _GetStoreInputState createState() => _GetStoreInputState();
+  _GetEndShelfState createState() => _GetEndShelfState();
 }
 
-class _GetStoreInputState extends State<GetStoreInput> {
+class _GetEndShelfState extends State<GetEndShelf> {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  String _storeName = ''; // 편의점 이름 변수
-  String _confirmationText = '';
-  String _finalResponse = ''; // 예/아니오 변수
+  String _endShelf = ''; // 목적지 진열대 이름 변수
+  String _confirmationText = ''; //확인 문구 담기는 변수
+  String _finalResponse = ''; // 예,아니오 결과를 담는 변수
   final FlutterTts tts = FlutterTts();
-  String language = "ko-KR";
+  String language = "ko-KR"; //tts:한국어로 설정
   Map<String, String> voice = {"name": "ko-kr-x-ism-local", "locale": "ko-KR"};
   double volume = 0.8;
   double pitch = 1.0;
@@ -35,7 +36,7 @@ class _GetStoreInputState extends State<GetStoreInput> {
 
   Future<void> _playAudio() async {
     try {
-      await _audioPlayer.setAsset('assets/audio/sayConvenience.mp3');
+      await _audioPlayer.setAsset('assets/audio/sayEndShelf.mp3');
       _audioPlayer.setVolume(1.0);
       _audioPlayer.play();
       _audioPlayer.playerStateStream.listen((state) {
@@ -50,9 +51,9 @@ class _GetStoreInputState extends State<GetStoreInput> {
 
   void _updateRecognizedText(String text) {
     setState(() {
-      _storeName = text;
+      _endShelf = text;
       _isConfirming = true;
-      _confirmationText = '$text이 맞습니까? 맞으면 예, 다시 녹음을 원하면 아니오를 말씀하세요.';
+      _confirmationText = '$text이 맞습니까? 맞으면 맞습니다, 다시 녹음을 원하면 아닙니다를 말씀하세요.';
       _speak(_confirmationText);
       _awaitingFinalResponse = true;
     });
@@ -75,17 +76,23 @@ class _GetStoreInputState extends State<GetStoreInput> {
     await tts.speak(text);
   }
 
-  void _handleConfirmation(String text) {
-    if (text.toLowerCase() == '예') {
+  void _handleConfirmation(String text) async {
+    if (text.toLowerCase() == '맞습니다') {
+      await Future.delayed(Duration(seconds: 1)); // 1초 지연
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => GetStartShelf(storeName: _storeName), // 다음 화면에 편의점 이름 전달
+          builder: (context) => FinalMap(
+            storeName: widget.storeName,
+            startShelf: widget.startShelf,
+            endShelf: _endShelf,
+          ),
         ),
       );
-    } else if (text.toLowerCase() == '아니오') {
+    } else if (text.toLowerCase() == '아닙니다') {
+      await Future.delayed(Duration(seconds: 1)); // 1초 지연
       setState(() {
-        _storeName = '';
+        _endShelf = '';
         _confirmationText = '';
         _finalResponse = '';
         _isConfirming = false;
@@ -105,7 +112,7 @@ class _GetStoreInputState extends State<GetStoreInput> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('진열대 경로찾기'),
+        title: Text('최종 진열대 경로찾기'),
       ),
       body: Column(
         children: [
@@ -127,7 +134,7 @@ class _GetStoreInputState extends State<GetStoreInput> {
                         ),
                       ),
                       child: Text(
-                        '방문할 편의점을 말씀해주세요!',
+                        '목적지 진열대를 말씀해주세요!',
                         style: TextStyle(
                           fontSize: 27.0,
                           fontWeight: FontWeight.bold,
@@ -149,7 +156,7 @@ class _GetStoreInputState extends State<GetStoreInput> {
                         ),
                       ),
                       child: Text(
-                        _storeName.isEmpty ? '' : _storeName,
+                        _endShelf.isEmpty ? '' : _endShelf,
                         style: TextStyle(
                           fontSize: 23.0,
                           fontWeight: FontWeight.bold,

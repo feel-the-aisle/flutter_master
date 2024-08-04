@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:probono_project/screen/food_map/get_store_input.dart';
+import 'package:probono_project/screen/food_map/find_food/get_store_input.dart';
 import 'package:probono_project/screen/copilot_api/initial_question_screen.dart';
 import 'package:probono_project/screen/search_lens/get_product_input.dart';
 

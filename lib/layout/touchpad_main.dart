@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:probono_project/screen/food_map/get_store_input.dart';
+import 'package:probono_project/screen/food_map/find_food/get_store_input.dart';
 import 'package:probono_project/screen/copilot_api/initial_question_screen.dart';
 import 'package:probono_project/screen/search_lens/get_product_input.dart';
 
@@ -14,28 +14,27 @@ class _TouchPadScreenState extends State<TouchPadScreen> {
 
   void handleTap() {
     final now = DateTime.now();
-    // 탭 간의 시간 간격을 500ms로 설정합니다.
+    // 탭 간의 시간 간격을 800ms로 설정합니다.
     if (lastTap == null || now.difference(lastTap!) > Duration(milliseconds: 800)) {
       tapCount = 0;
     }
     tapCount++;
     lastTap = now;
-
-    // 사용자가 추가로 탭을 하지 않을 경우를 대비하여 500ms 후에 탭 카운트를 체크합니다.
+    // 사용자가 추가로 터치패드를 탭을 하지 않을 경우를 대비하여 800ms 후에 탭 카운트를 체크합니다.
     Future.delayed(Duration(milliseconds: 800), () {
-      if (tapCount == 1) {
+      if (tapCount == 1) { //사용자가 한 번 탭했을 때 GetStoreInput 화면으로 이동합니다
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (BuildContext context) => GetStoreInput(),
           ),
         );
-      } else if (tapCount == 2) {
+      } else if (tapCount == 2) {//사용자가 두 번 탭했을 때 GetProductInput 화면으로 이동합니다
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (BuildContext context) => GetProductInput(),
           ),
         );
-      } else if (tapCount == 3) {
+      } else if (tapCount == 3) {//사용자가 세 번 탭했을 때 InitialQuestionScreen 화면으로 이동합니다
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (BuildContext context) => InitialQuestionScreen(),

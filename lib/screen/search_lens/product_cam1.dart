@@ -1,87 +1,85 @@
+// lib/product_cam1.dart
+
+import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class ProductCam1 extends StatefulWidget {
   @override
-  _ProductCamState createState() => _ProductCamState();
+  _ProductCam1State createState() => _ProductCam1State();
 }
 
-class _ProductCamState extends State<ProductCam1> {
-  late CameraController _controller;
+class _ProductCam1State extends State<ProductCam1> {
+  File? _image;
+  final ImagePicker _picker = ImagePicker();
   late IO.Socket _socket;
-  bool isStreaming = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
-    _initializeSocket();
-  }
-
-  Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    final camera = cameras.first;
-    _controller = CameraController(camera, ResolutionPreset.medium);
-    await _controller.initialize();
-    setState(() {});
-  }
-
-  void _initializeSocket() {
-    _socket = IO.io('http://<YOUR_FLASK_SERVER_IP>:5000', <String, dynamic>{
+    // Socket.IO 클라이언트 설정 및 서버와 연결
+    _socket = IO.io('http://3.37.101.243:8080', <String, dynamic>{
       'transports': ['websocket'],
     });
 
     _socket.on('connect', (_) {
       print('Connected to server');
-      setState(() {
-        isStreaming = true;
-      });
-      _startStreaming();
     });
 
     _socket.on('disconnect', (_) {
       print('Disconnected from server');
+    });
+  }
+
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
       setState(() {
-        isStreaming = false;
+        _image = File(pickedFile.path);
       });
-    });
+    } else {
+      print('No image selected.');
+    }
   }
 
-  void _startStreaming() {
-    _controller.startImageStream((CameraImage image) {
-      if (!isStreaming) return;
+  void _sendImage() {
+    if (_image != null) {
+      final bytes = _image!.readAsBytesSync();
+      final base64Image = base64Encode(bytes);
 
-      // Convert the image to a format that can be sent over the socket
-      final WriteBuffer allBytes = WriteBuffer();
-      for (var plane in image.planes) {
-        allBytes.putUint8List(plane.bytes);
-      }
-      final bytes = allBytes.done().buffer.asUint8List();
-
-      // Send the frame data to the server
-      _socket.emit('frame', bytes);
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    _socket?.dispose();
-    super.dispose();
+      _socket.emit('image', {'image': base64Image});
+      print('Image sent to server');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_controller.value.isInitialized) {
-      return Container();
-    }
     return Scaffold(
-      appBar: AppBar(title: Text('Product Camera')),
-      body: CameraPreview(_controller),
+      appBar: AppBar(
+        title: Text('ProductCam1'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            _image == null
+                ? Text('No image selected.')
+                : Image.file(_image!),
+            ElevatedButton(
+              onPressed: _pickImage,
+              child: Text('Pick Image'),
+            ),
+            ElevatedButton(
+              onPressed: _sendImage,
+              child: Text('Send Image'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
+
