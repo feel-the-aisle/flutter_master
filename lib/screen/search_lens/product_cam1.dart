@@ -102,6 +102,7 @@ class _ProductCam1State extends State<ProductCam1> {
             child: Container(
               padding: EdgeInsets.all(28.0),
               width: MediaQuery.of(context).size.width * 0.9,
+              height: MediaQuery.of(context).size.width*0.3,
               decoration: BoxDecoration(
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.only(
@@ -112,7 +113,7 @@ class _ProductCam1State extends State<ProductCam1> {
                 '입구에서 시작해 라면 진열대까지 가는지 방법입니다.\n'
                     '입구에서 10걸음 직진 한 후, 좌회전하여 7걸음 직진하세요. 라면 진열대는 당신의 왼쪽에 있습니다.',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 9,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.left,
