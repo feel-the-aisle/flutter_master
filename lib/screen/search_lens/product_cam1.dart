@@ -1,18 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:vibration/vibration.dart';
-
-void main() {
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: ProductCam1(),
-    );
-  }
-}
+import 'package:camera/camera.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'dart:async';  // 타이머를 사용하기 위해 추가
 
 class ProductCam1 extends StatefulWidget {
   @override
@@ -20,183 +12,114 @@ class ProductCam1 extends StatefulWidget {
 }
 
 class _ProductCam1State extends State<ProductCam1> {
-  final int rows = 20;
-  final int columns = 10;
-  final Point startPoint = Point(19, 0); // (20,1) corresponds to (19,0)
-  final Point endPoint = Point(17, 2); // (18,3) corresponds to (17,2)
-  final List<Point> path = [
-    Point(19, 0), // (20,1)
-    Point(19, 1), // (20,2)
-    Point(19, 2), // (20,3)
-    Point(18, 2), // (19,3)
-    Point(17, 2), // (18,3)
-  ];
-  Point currentPosition = Point(19, 0);
+  CameraController? _cameraController;
+  late IO.Socket _socket;
+  bool _isStreaming = false;
+  Timer? _frameTimer;
 
-  bool isCorrectPath(Point point) {
-    return path.contains(point);
+  @override
+  void initState() {
+    super.initState();
+    _initializeCamera();
+    _initializeSocket();
   }
 
-  void handleTouch(Point point) {
-    if (isCorrectPath(point)) {
-      if (Vibration.hasVibrator() != null) {
-        Vibration.vibrate();
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    _socket.dispose();
+    _frameTimer?.cancel();  // 타이머 취소
+    super.dispose();
+  }
+
+  void _initializeCamera() async {
+    final cameras = await availableCameras();
+    final camera = cameras.first;
+
+    _cameraController = CameraController(
+      camera,
+      ResolutionPreset.medium,
+      enableAudio: false,
+    );
+
+    await _cameraController?.initialize();
+    setState(() {});
+
+    _startStreaming();  // 카메라 초기화 후 바로 스트리밍 시작
+
+    _cameraController?.startImageStream((CameraImage image) {
+      if (_isStreaming) {
+        _scheduleFrameTransmission(image);  // 프레임 전송 예약
       }
-      setState(() {
-        currentPosition = point;
-      });
+    });
+  }
+
+  void _initializeSocket() {
+    _socket = IO.io('http://15.165.246.238:8080', IO.OptionBuilder()
+        .setTransports(['websocket'])
+        .disableAutoConnect()
+        .build());
+
+    _socket.connect();
+
+    _socket.onConnect((_) {
+      print('연결됏따아ㅏ아아아아앙아아아아아아아아아아아아');
+    });
+
+    _socket.onDisconnect((_) {
+      print('Disconnected from WebSocket server');
+    });
+
+    _socket.on('video_response', (data) {
+      print('Received response: $data');
+    });
+  }
+
+  void _scheduleFrameTransmission(CameraImage image) {
+    if (_frameTimer?.isActive ?? false) return;  // 타이머가 이미 작동 중이면 반환
+
+    _frameTimer = Timer(Duration(seconds: 3), () {
+      _processCameraImage(image);
+    });
+  }
+
+  void _processCameraImage(CameraImage image) {
+    final List<int> yuvBytes = _concatenatePlanes(image.planes);
+    final Uint8List imageBytes = Uint8List.fromList(yuvBytes);
+    final String base64Image = base64Encode(imageBytes);
+
+    _socket.emit('frame', base64Decode(base64Image));
+  }
+
+  List<int> _concatenatePlanes(List<Plane> planes) {
+    final WriteBuffer allBytes = WriteBuffer();
+    for (Plane plane in planes) {
+      allBytes.putUint8List(plane.bytes);
     }
+    return allBytes.done().buffer.asUint8List();
+  }
+
+  void _startStreaming() {
+    setState(() {
+      _isStreaming = true;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    double screenHeight = MediaQuery.of(context).size.height;
-    double blockSize = screenWidth / columns;
-    double gridHeight = blockSize * rows;
-    double maxGridHeight = screenHeight * 0.7; // Leave space for text below
-
-    // Adjust block size to fit the screen height if needed
-    if (gridHeight > maxGridHeight) {
-      blockSize = maxGridHeight / rows;
-    }
-
     return Scaffold(
       appBar: AppBar(
-        title: Text('진열대 경로 찾기'),
+        title: Text('Product Camera Stream'),
       ),
       body: Column(
         children: [
-          Expanded(
-            child: Center(
-              child: Container(
-                width: blockSize * columns,
-                height: blockSize * rows,
-                color: Colors.grey[300],
-                child: GestureDetector(
-                  onPanUpdate: (details) {
-                    setState(() {
-                      int newY = (details.localPosition.dy / blockSize).floor();
-                      int newX = (details.localPosition.dx / blockSize).floor();
-                      Point newPoint = Point(newY, newX);
-                      handleTouch(newPoint);
-                    });
-                  },
-                  child: CustomPaint(
-                    painter: GridPainter(
-                      rows: rows,
-                      columns: columns,
-                      blockSize: blockSize,
-                      currentPosition: currentPosition,
-                      startPoint: startPoint,
-                      endPoint: endPoint,
-                      path: path,
-                    ),
-                  ),
-                ),
-              ),
+          if (_cameraController != null && _cameraController!.value.isInitialized)
+            AspectRatio(
+              aspectRatio: _cameraController!.value.aspectRatio,
+              child: CameraPreview(_cameraController!),
             ),
-          ),
-          Align(
-            alignment: Alignment.bottomLeft,
-            child: Container(
-              padding: EdgeInsets.all(28.0),
-              width: MediaQuery.of(context).size.width * 0.9,
-              height: MediaQuery.of(context).size.width*0.3,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(80.0),
-                ),
-              ),
-              child: Text(
-                '입구에서 시작해 라면 진열대까지 가는지 방법입니다.\n'
-                    '입구에서 10걸음 직진 한 후, 좌회전하여 7걸음 직진하세요. 라면 진열대는 당신의 왼쪽에 있습니다.',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.left,
-              ),
-            ),
-          ),
         ],
       ),
     );
-  }
-}
-
-class Point {
-  final int y;
-  final int x;
-
-  Point(this.y, this.x);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is Point && runtimeType == other.runtimeType && y == other.y && x == other.x;
-
-  @override
-  int get hashCode => y.hashCode ^ x.hashCode;
-}
-
-class GridPainter extends CustomPainter {
-  final int rows;
-  final int columns;
-  final double blockSize;
-  final Point currentPosition;
-  final Point startPoint;
-  final Point endPoint;
-  final List<Point> path;
-
-  GridPainter({
-    required this.rows,
-    required this.columns,
-    required this.blockSize,
-    required this.currentPosition,
-    required this.startPoint,
-    required this.endPoint,
-    required this.path,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    Paint paint = Paint()..style = PaintingStyle.fill;
-
-    for (int y = 0; y < rows; y++) {
-      for (int x = 0; x < columns; x++) {
-        Point point = Point(y, x);
-
-        if (point == startPoint) {
-          paint.color = Colors.red;
-        } else if (point == endPoint) {
-          paint.color = Colors.black;
-        } else if (path.contains(point)) {
-          paint.color = Colors.yellow;
-        } else {
-          paint.color = Colors.grey;
-        }
-
-        if (point == currentPosition) {
-          paint.color = Colors.red;
-        }
-
-        canvas.drawRect(
-          Rect.fromLTWH(
-            x * blockSize,
-            y * blockSize,
-            blockSize - 1,
-            blockSize - 1,
-          ),
-          paint,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) {
-    return true;
   }
 }

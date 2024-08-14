@@ -4,8 +4,13 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class TouchPad_Copilot extends StatefulWidget {
   final Function(String) onTextRecognized;
+  final bool awaitingFinalResponse; // 새 매개변수 추가
 
-  const TouchPad_Copilot({Key? key, required this.onTextRecognized}) : super(key: key);
+  const TouchPad_Copilot(
+      {Key? key,
+        required this.onTextRecognized,
+        required this.awaitingFinalResponse,
+      }) : super(key: key);
 
   @override
   _TouchPad_CopilotState createState() => _TouchPad_CopilotState();

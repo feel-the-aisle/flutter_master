@@ -58,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     minimumSize: Size(60, 80),
                   ),
                   onPressed: (){
-                    Navigator.of(context).push(MaterialPageRoute(builder: (context) => ProductCam1()));
+                    Navigator.of(context).push(MaterialPageRoute(builder: (context) => GetProductInput()));
                   },
                   child: Text('상품 구별하기',
                     style: TextStyle(
