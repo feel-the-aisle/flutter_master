@@ -13,10 +13,11 @@ class GetStoreInput extends StatefulWidget {
 
 class _GetStoreInputState extends State<GetStoreInput> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final FlutterTts tts = FlutterTts();
+
   String _storeName = ''; // 편의점 이름 변수
   String _confirmationText = ''; //확인 문구 담기는 변수
   String _finalResponse = ''; // 예,아니오 결과를 담는 변수
-  final FlutterTts tts = FlutterTts();
   String language = "ko-KR"; //tts:한국어로 설정
   Map<String, String> voice = {"name": "ko-kr-x-ism-local", "locale": "ko-KR"};
   double volume = 0.8;
