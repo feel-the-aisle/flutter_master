@@ -72,7 +72,7 @@ class _TouchPadScreenState extends State<TouchPadScreen> {
                 style: TextStyle(
                   fontSize: 50,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black,
+                  color: Color(0xFF0000FF),
                 ),
               ),
             ),

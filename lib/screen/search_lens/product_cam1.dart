@@ -124,7 +124,7 @@ class _ProductCam1State extends State<ProductCam1> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Product Camera Stream'),
+        title: Text('상품 구별하기'),
       ),
       body: Column(
         children: [

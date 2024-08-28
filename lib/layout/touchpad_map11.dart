@@ -75,7 +75,7 @@ class _TouchPad_Map1State extends State<TouchPad_Map11> {
       _speech.stop();
       setState(() {
         _isListening = false;
-        _padColor = Colors.amberAccent;  // 터치패드 색상 복원
+        _padColor = Color(0xFFFFFF00);  // 터치패드 색상 복원
       });
       _playEffect('assets/audio/microphone_off.mp3');
     }
@@ -123,7 +123,7 @@ class _TouchPad_Map1State extends State<TouchPad_Map11> {
                 style: TextStyle(
                   fontSize: 50,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black,
+                  color: Color(0xFF0000FF),
                 ),
               ),
             ),
