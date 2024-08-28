@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'dart:async';  // 타이머를 사용하기 위해 추가
+import 'dart:async';
 
 class ProductCam1 extends StatefulWidget {
   @override
@@ -16,6 +16,7 @@ class _ProductCam1State extends State<ProductCam1> {
   late IO.Socket _socket;
   bool _isStreaming = false;
   Timer? _frameTimer;
+  String _currentQuadrant = '';  // 현재 Quadrant 값을 저장할 변수
 
   @override
   void initState() {
@@ -63,7 +64,7 @@ class _ProductCam1State extends State<ProductCam1> {
     _socket.connect();
 
     _socket.onConnect((_) {
-      print('연결됏따아ㅏ아아아아앙아아아아아아아아아아아아');
+      print('Connected to WebSocket server');
     });
 
     _socket.onDisconnect((_) {
@@ -72,7 +73,18 @@ class _ProductCam1State extends State<ProductCam1> {
 
     _socket.on('video_response', (data) {
       print('Received response: $data');
+      setState(() {
+        _currentQuadrant = _extractQuadrant(data);  // Quadrant 값을 업데이트
+      });
     });
+  }
+
+  String _extractQuadrant(dynamic data) {
+    List<dynamic> detectedObjects = data['detected_objects'];
+    if (detectedObjects.isNotEmpty) {
+      return detectedObjects[0]['quadrant'];  // 첫 번째 객체의 Quadrant 값을 반환
+    }
+    return 'Unknown';
   }
 
   void _scheduleFrameTransmission(CameraImage image) {
@@ -87,6 +99,9 @@ class _ProductCam1State extends State<ProductCam1> {
     final List<int> yuvBytes = _concatenatePlanes(image.planes);
     final Uint8List imageBytes = Uint8List.fromList(yuvBytes);
     final String base64Image = base64Encode(imageBytes);
+
+    // 프레임의 가로, 세로 길이를 콘솔에 출력
+    print('Frame Width: ${image.width}, Frame Height: ${image.height}');
 
     _socket.emit('frame', base64Decode(base64Image));
   }
@@ -114,10 +129,18 @@ class _ProductCam1State extends State<ProductCam1> {
       body: Column(
         children: [
           if (_cameraController != null && _cameraController!.value.isInitialized)
-            AspectRatio(
-              aspectRatio: _cameraController!.value.aspectRatio,
-              child: CameraPreview(_cameraController!),
+            Container(
+              height: MediaQuery.of(context).size.height * 0.6,  // 세로 크기를 60%로 설정
+              child: AspectRatio(
+                aspectRatio: _cameraController!.value.aspectRatio,
+                child: CameraPreview(_cameraController!),
+              ),
             ),
+          SizedBox(height: 20),
+          Text(
+            '진열대에서 상품 위치: $_currentQuadrant',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );

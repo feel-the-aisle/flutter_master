@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:vibration/vibration.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 class FinalMap extends StatefulWidget {
   final String storeName;
@@ -18,18 +21,72 @@ class FinalMap extends StatefulWidget {
 }
 
 class _FinalMapState extends State<FinalMap> {
-  final int rows = 20;
-  final int columns = 10;
-  final Point startPoint = Point(19, 0); // (20,1) corresponds to (19,0)
-  final Point endPoint = Point(17, 2); // (18,3) corresponds to (17,2)
-  final List<Point> path = [
-    Point(19, 0), // (20,1)
-    Point(19, 1), // (20,2)
-    Point(19, 2), // (20,3)
-    Point(18, 2), // (19,3)
-    Point(17, 2), // (18,3)
-  ];
-  Point currentPosition = Point(19, 0);
+  int rows = 20;
+  int columns = 10;
+  List<Point> path = [];
+  Point startPoint = Point(0, 0);
+  Point endPoint = Point(0, 0);
+  Point currentPosition = Point(0, 0);
+  String endPosition = '';
+  List<String> strPath = [];
+  final FlutterTts tts = FlutterTts();
+  String language = "ko-KR";
+  Map<String, String> voice = {"name": "ko-kr-x-ism-local", "locale": "ko-KR"};
+  double volume = 0.8;
+  double pitch = 1.0;
+  double rate = 0.5;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+  }
+
+  Future<void> _speak(String text) async {
+    await tts.setLanguage(language);
+    await tts.setVoice(voice);
+    await tts.setSpeechRate(rate);
+    await tts.setVolume(volume);
+    await tts.setPitch(pitch);
+    await tts.speak(text);
+  }
+
+  Future<void> fetchData() async {
+    final url = Uri.parse('http://3.37.101.243:8080/find-path/find_paths');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name': widget.storeName,
+        'startPoint': widget.startShelf,
+        'endPoint': widget.endShelf,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      setState(() {
+        columns = data['storeGalo'];
+        rows = data['storeSelo'];
+        path = (data['result'] as List)
+            .map((coord) => Point(coord[0], coord[1]))
+            .toList();
+        startPoint = path.first;
+        endPoint = path.last;
+        currentPosition = startPoint;
+        endPosition = data['endPosition'];
+        strPath = List<String>.from(data['strPath']);
+      });
+
+      String initialText = '상점명: ${widget.storeName} | 출발 진열대: ${widget.startShelf} | 도착 진열대: ${widget.endShelf}';
+      _speak(initialText);
+      _speak("경로 설명: ${strPath.join(', ')}");
+      _speak('목적지 위치: $endPosition');
+    } else {
+      throw Exception('Failed to load path data');
+    }
+  }
 
   bool isCorrectPath(Point point) {
     return path.contains(point);
@@ -47,17 +104,15 @@ class _FinalMapState extends State<FinalMap> {
   }
 
   @override
+  void dispose() {
+    tts.stop(); // TTS 중지
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
-    double screenHeight = MediaQuery.of(context).size.height;
     double blockSize = screenWidth / columns;
-    double gridHeight = blockSize * rows;
-    double maxGridHeight = screenHeight * 0.7; // Leave space for text below
-
-    // Adjust block size to fit the screen height if needed
-    if (gridHeight > maxGridHeight) {
-      blockSize = maxGridHeight / rows;
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -68,41 +123,44 @@ class _FinalMapState extends State<FinalMap> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Text(
-              '상점명: ${widget.storeName} | 출발 진열대: ${widget.startShelf} | 도착 진열대: ${widget.endShelf}',
-              style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
+              '${widget.storeName}에서 \n ${widget.startShelf}부터 \n ${widget.endShelf}까지 가는 경로입니다.',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
           ),
-          Expanded(
-            child: Center(
-              child: Container(
-                width: blockSize * columns,
-                height: blockSize * rows,
-                color: Colors.grey[300],
-                child: GestureDetector(
-                  onPanUpdate: (details) {
-                    setState(() {
-                      int newY = (details.localPosition.dy / blockSize).floor();
-                      int newX = (details.localPosition.dx / blockSize).floor();
-                      Point newPoint = Point(newY, newX);
-                      handleTouch(newPoint);
-                    });
-                  },
-                  child: CustomPaint(
-                    painter: GridPainter(
-                      rows: rows,
-                      columns: columns,
-                      blockSize: blockSize,
-                      currentPosition: currentPosition,
-                      startPoint: startPoint,
-                      endPoint: endPoint,
-                      path: path,
+          if (path.isEmpty)
+            Expanded(child: Center(child: CircularProgressIndicator()))
+          else
+            Expanded(
+              child: Center(
+                child: Container(
+                  width: blockSize * columns,
+                  height: blockSize * rows,
+                  color: Colors.grey[300],
+                  child: GestureDetector(
+                    onPanUpdate: (details) {
+                      setState(() {
+                        int newY = (details.localPosition.dy / blockSize).floor();
+                        int newX = (details.localPosition.dx / blockSize).floor();
+                        Point newPoint = Point(newY, newX);
+                        handleTouch(newPoint);
+                      });
+                    },
+                    child: CustomPaint(
+                      painter: GridPainter(
+                        rows: rows,
+                        columns: columns,
+                        blockSize: blockSize,
+                        currentPosition: currentPosition,
+                        startPoint: startPoint,
+                        endPoint: endPoint,
+                        path: path,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
           Align(
             alignment: Alignment.bottomLeft,
             child: Container(
@@ -114,14 +172,18 @@ class _FinalMapState extends State<FinalMap> {
                   topRight: Radius.circular(80.0),
                 ),
               ),
-              child: Text(
-                '입구에서 시작해 라면 진열대까지 가는지 방법입니다.\n'
-                    '입구에서 10걸음 직진 한 후, 좌회전하여 7걸음 직진하세요. 라면 진열대는 당신의 왼쪽에 있습니다.',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.left,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${strPath.join(', ')}한 후 $endPosition',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                ],
               ),
             ),
           ),

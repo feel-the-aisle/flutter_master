@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:probono_project/layout/touchpad_map1.dart';
+import 'package:probono_project/layout/touchpad_map11.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:probono_project/screen/food_map/find_food/get_startshelf_input.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -14,57 +12,22 @@ class InitialQuestionScreen extends StatefulWidget {
 }
 
 class _InitialQuestionScreenState extends State<InitialQuestionScreen> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
   String _ramenName = ''; // 라면 이름 변수
-  String _confirmationText = ''; //확인 문구 담기는 변수
-  String _finalResponse = ''; // 예,아니오 결과를 담는 변수
+  String _confirmationText = ''; // 확인 문구 담기는 변수
+  String _finalResponse = ''; // 예, 아니오 결과를 담는 변수
   String _recipe = ''; // 서버로부터 받은 조리법을 저장하는 변수
   final FlutterTts tts = FlutterTts();
-  String language = "ko-KR"; //tts:한국어로 설정
+  String language = "ko-KR"; // tts: 한국어로 설정
   Map<String, String> voice = {"name": "ko-kr-x-ism-local", "locale": "ko-KR"};
   double volume = 0.8;
   double pitch = 1.0;
   double rate = 0.5;
   bool _isConfirming = false;
-  bool _awaitingFinalResponse = false;
 
   @override
   void initState() {
     super.initState();
-    _playAudio();
-  }
-
-  Future<void> _playAudio() async {
-    try {
-      await _audioPlayer.setAsset('assets/audio/sayConvenience.mp3');
-      _audioPlayer.setVolume(1.0);
-      _audioPlayer.play();
-      _audioPlayer.playerStateStream.listen((state) {
-        if (state.processingState == ProcessingState.completed) {
-          // 안내 음성 재생 완료 후 터치패드 기능 활성화
-        }
-      });
-    } catch (e) {
-      print('Error playing audio: $e');
-    }
-  }
-
-  void _updateRecognizedText(String text) {
-    setState(() {
-      _ramenName = text;
-      _isConfirming = true;
-      _confirmationText = '$text이 맞습니까? 맞으면 맞습니다, 다시 녹음을 원하면 아닙니다를 말씀하세요.';
-      _speak(_confirmationText);
-      _awaitingFinalResponse = true;
-    });
-  }
-
-  void _updateFinalResponse(String text) {
-    setState(() {
-      _finalResponse = text;
-      _awaitingFinalResponse = false;
-      _handleConfirmation(text);
-    });
+    _speak("상품명을 말하면 조리법을 찾아드립니다!");
   }
 
   Future<void> _speak(String text) async {
@@ -76,24 +39,38 @@ class _InitialQuestionScreenState extends State<InitialQuestionScreen> {
     await tts.speak(text);
   }
 
-  void _handleConfirmation(String text) async {
-    if (text.toLowerCase() == '맞습니다') {
-      // 맞으면 서버에게 _ramenName 전송
+  void _updateRecognizedText(String text) {
+    setState(() {
+      _ramenName = text;
+      _isConfirming = true;
+      _confirmationText = '$text이 맞습니까? 터치패드를 한 번 누르면 맞습니다, 두 번 누르면 아닙니다.';
+      _speak(_confirmationText);
+    });
+  }
+
+  void _handleConfirmation(bool isConfirmed) async {
+    if (isConfirmed) {
+      setState(() {
+        _finalResponse = "맞습니다";
+      });
+
       final response = await _sendRamenNameToServer(_ramenName);
       setState(() {
         _recipe = response ?? '조리법을 가져오는 데 실패했습니다.';
         _isConfirming = false;
       });
-    } else if (text.toLowerCase() == '아닙니다') {
+
+      // 조리법을 읽어주기
+      _speak(_recipe);
+    } else {
       await Future.delayed(Duration(seconds: 1)); // 1초 지연
       setState(() {
         _ramenName = '';
         _confirmationText = '';
         _finalResponse = '';
+        _recipe = '';
         _isConfirming = false;
-        _awaitingFinalResponse = false;
-        _recipe = '';  // 이전 조리법 내용 삭제
-        _playAudio();
+        _speak("상품명을 말하면 조리법을 찾아드립니다!");
       });
     }
   }
@@ -102,7 +79,7 @@ class _InitialQuestionScreenState extends State<InitialQuestionScreen> {
     final url = Uri.parse('http://3.37.101.243:8080/gpt-ramen/recipes');
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'}, // JSON 형식으로 보냄
+      headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'request_ramen': ramenName}),
     );
 
@@ -119,7 +96,7 @@ class _InitialQuestionScreenState extends State<InitialQuestionScreen> {
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
+    tts.stop(); // TTS 중지
     super.dispose();
   }
 
@@ -262,11 +239,10 @@ class _InitialQuestionScreenState extends State<InitialQuestionScreen> {
           ),
           Expanded(
             flex: 1,
-            child: TouchPad_Map1(
-              onTextRecognized: _awaitingFinalResponse
-                  ? _updateFinalResponse
-                  : _updateRecognizedText,
-              awaitingFinalResponse: _awaitingFinalResponse,
+            child: TouchPad_Map11(
+              onConfirmation: _handleConfirmation,
+              onTextRecognized: _updateRecognizedText,
+              isConfirming: _isConfirming,
             ),
           ),
         ],

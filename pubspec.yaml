@@ -81,6 +81,8 @@ flutter:
     - assets/audio/sayConvenience.mp3
     - assets/audio/sayProductName.mp3
     - assets/audio/copilot_Receipt.mp3
+    - assets/audio/microphone_on.mp3
+    - assets/audio/microphone_off.mp3
 
   # To add assets to your application, add an assets section, like this:
   # assets:

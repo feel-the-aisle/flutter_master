@@ -41,9 +41,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.of(context).push(MaterialPageRoute(builder: (context) => GetStoreInput()));
                   },
 
-                  child: Text('진열대 경로 찾기',
+                  child: Text('편의점 내부 경로 찾기',
                   style: TextStyle(
-                    fontSize: 32,
+                    fontSize: 25,
                     fontWeight: FontWeight.w500,
                     color: Colors.black
                   ),
@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   child: Text('상품 구별하기',
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: 27,
                       fontWeight: FontWeight.w500,
                       color: Colors.black
                   ),
@@ -81,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   child: Text('조리법 검색하기',
                       style: TextStyle(
-                      fontSize: 34,
+                      fontSize: 27,
                       fontWeight: FontWeight.w500,
                       color: Colors.black
                   ),
