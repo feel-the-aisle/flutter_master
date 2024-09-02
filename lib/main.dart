@@ -4,6 +4,8 @@ import 'package:probono_project/screen/home_screen/home_screen.dart';
 import 'package:camera/camera.dart';
 import 'dart:async';
 
+import 'package:probono_project/screen/initial_screen/menu.dart';
+
 List<CameraDescription> cameras = [];
 
 Future<void> main() async {
@@ -18,7 +20,7 @@ Future<void> main() async {
   runApp(
     MaterialApp(
       title: 'probono',
-      home: HomeScreen(),
+      home: MenuScreen(),
     ),
   );
 }
