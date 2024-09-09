@@ -7,17 +7,17 @@ import 'package:probono_project/layout/touchpad_cam.dart';  // Make sure this is
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:async';
 
-class ProductCam1 extends StatefulWidget {
+class ProductCam2 extends StatefulWidget {
   final String productName;  // Add the productName parameter
 
   // Update constructor to accept productName
-  ProductCam1({required this.productName});
+  ProductCam2({required this.productName});
 
   @override
-  _ProductCam1State createState() => _ProductCam1State();
+  _ProductCam2State createState() => _ProductCam2State();
 }
 
-class _ProductCam1State extends State<ProductCam1> {
+class _ProductCam2State extends State<ProductCam2> {
   CameraController? _cameraController;
   late IO.Socket _socket;
   bool _isStreaming = false;
@@ -131,55 +131,52 @@ class _ProductCam1State extends State<ProductCam1> {
       appBar: AppBar(
         title: Text('상품 구별하기'),
       ),
-      body: Stack(  // Stack allows layering
+      body: Stack(
         children: [
-          // Camera Preview (bottom layer)
+          // Camera Preview
           if (_cameraController != null && _cameraController!.value.isInitialized)
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              height: MediaQuery.of(context).size.height * 0.65,  // Adjust the camera height to 60% of the screen
-              child: FittedBox(
-                fit: BoxFit.cover,  // Cover the entire available space
-                child: SizedBox(
-                  width: _cameraController!.value.previewSize!.width,
-                  height: _cameraController!.value.previewSize!.height,
-                  child: CameraPreview(_cameraController!),
-                ),
+            Container(
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height,
+              child: AspectRatio(
+                aspectRatio: _cameraController!.value.aspectRatio,
+                child: CameraPreview(_cameraController!),
               ),
             ),
-
-          // Black SizedBox for displaying product name and quadrant (overlay on the camera preview)
+          // Black SizedBox for displaying product name and quadrant
           Positioned(
-            bottom: 230,  // Adjust position of the black box
-            left: MediaQuery.of(context).size.width * 0.2,  // Adjust the left and right padding to reduce width
-            right: MediaQuery.of(context).size.width * 0.2, // Adjust the width
-            child: Container(
-              padding: EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),  // Black background with transparency
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                "'${widget.productName}'의 위치는 \n 진열대 ${_currentQuadrant}입니다.",  // Display productName and quadrant
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.yellow,  // Yellow text color
+            bottom: MediaQuery.of(context).size.height * 0.35,  // Adjust position of the box
+            left: 20,
+            right: 20,
+            child: SizedBox(
+              height: 50,  // Set the height of the black box
+              child: Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.black,  // Black background color
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                textAlign: TextAlign.center,
+                child: Center(
+                  child: Text(
+                    "'${widget.productName}'는 진열대 ${_currentQuadrant}에 있습니다.",  // Display productName and quadrant
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.yellow,  // Yellow text color
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
             ),
           ),
-
-          // Touchpad Overlay (on top of the camera preview)
+          // Overlay Touchpad, pass productName to the touchpad widget
           Positioned(
-            bottom: 0,  // Stick to the bottom
+            bottom: 0,  // Position it at the bottom of the screen
             left: 0,
             right: 0,
             child: Container(
-              height: MediaQuery.of(context).size.height * 0.3,  // Adjust the height of the touchpad
+              height: MediaQuery.of(context).size.height * 0.3,  // Increase the height of the touchpad
               child: TouchPad_Cam(productName: widget.productName),  // Pass productName to the touchpad
             ),
           ),

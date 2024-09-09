@@ -92,7 +92,7 @@ class _GetpNameCamState extends State<GetpNameCam> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ProductCam1(),
+          builder: (context) => ProductCam1(productName: _productName), // Pass the product name here
         ),
       );
     } else {
