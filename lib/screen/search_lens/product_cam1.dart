@@ -129,6 +129,7 @@ class _ProductCam1State extends State<ProductCam1> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+
         title: Text('상품 구별하기'),
       ),
       body: Stack(  // Stack allows layering
