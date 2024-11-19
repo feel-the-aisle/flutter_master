@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import '../initial_screen/menu.dart';
 import 'package:http/http.dart' as http; // HTTP 요청을 위한 패키지
@@ -49,7 +48,6 @@ class _PaintMapScreenState extends State<PaintMapScreen> {
     _blockColors = List<Color>.filled(totalBlocks, colorMap["기본"]!);
   }
 
-  // 백엔드로 POST 요청 보내기
   Future<void> _submitData() async {
     List<Map<String, int>> coloredBlocks = [];
 
@@ -58,41 +56,40 @@ class _PaintMapScreenState extends State<PaintMapScreen> {
 
     for (int i = 0; i < _blockColors.length; i++) {
       Color color = _blockColors[i];
-      if (color != colorMap["기본"]) { // 기본 색이 아닌 경우만 처리
-        int x = (i % gridWidth) + 1; // 가로 좌표
-        int y = (gridHeight - (i ~/ gridWidth)); // 4사분면 방식으로 세로 좌표 변환
+      if (color != colorMap["기본"]) {
+        int x = (i % gridWidth);
+        int y = (i ~/ gridWidth);
         int colorCode = colorCodeMap[color] ?? 0;
 
-        coloredBlocks.add({"x": x, "y": y, "color": colorCode});
+        coloredBlocks.add({"storex": x, "storey": y, "storestate": colorCode});
       }
     }
 
-    // 백엔드로 보낼 데이터 구성
     Map<String, dynamic> payload = {
-      "storeName": widget.storeName,
-      "width": widget.width,
-      "height": widget.height,
-      "coloredBlocks": coloredBlocks,
+      "storename": widget.storeName,
+      "storerow": gridHeight,
+      "storecol": gridWidth,
+      "maps": coloredBlocks,
     };
 
-    // POST 요청
+    // Log the payload
+    print("Payload: ${jsonEncode(payload)}");
+
     try {
       var response = await http.post(
-        Uri.parse('https://your-backend-endpoint.com/submit'), // 백엔드 엔드포인트 수정
+        Uri.parse('http://3.37.101.243:8080/map/store'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),
       );
 
       if (response.statusCode == 200) {
-        // 성공적으로 백엔드에 데이터를 전송한 경우
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => MenuScreen()), // MenuScreen으로 이동
+          MaterialPageRoute(builder: (context) => MenuScreen()),
         );
       } else {
-        // 에러 처리
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('등록 실패: ${response.body}')),
+          SnackBar(content: Text('서버 응답: ${response.body}')),
         );
       }
     } catch (e) {
@@ -114,7 +111,6 @@ class _PaintMapScreenState extends State<PaintMapScreen> {
       ),
       body: Column(
         children: [
-          // 상단 2/3 영역
           Expanded(
             flex: 2,
             child: Padding(
@@ -128,20 +124,18 @@ class _PaintMapScreenState extends State<PaintMapScreen> {
                   ),
                   SizedBox(height: 16),
                   Expanded(
-                    child: _buildGrid(gridWidth, gridHeight), // 지도를 포함한 그리드
+                    child: _buildGrid(gridWidth, gridHeight),
                   ),
                 ],
               ),
             ),
           ),
-          // 하단 1/3 영역 - 고정된 그림판 패드
           _buildDrawingPad(),
         ],
       ),
     );
   }
 
-  // 그리드 구성
   Widget _buildGrid(int width, int height) {
     return GridView.builder(
       physics: ScrollPhysics(),
@@ -170,20 +164,18 @@ class _PaintMapScreenState extends State<PaintMapScreen> {
     );
   }
 
-  // 그림판 패드
   Widget _buildDrawingPad() {
     return ClipRRect(
       borderRadius: BorderRadius.only(
-        topLeft: Radius.circular(30), // 둥근 모서리 처리
-        topRight: Radius.circular(30), // 둥근 모서리 처리
+        topLeft: Radius.circular(30),
+        topRight: Radius.circular(30),
       ),
       child: Container(
         color: Colors.grey[350],
-        height: MediaQuery.of(context).size.height * 0.33, // 화면 하단 1/3 고정 높이
+        height: MediaQuery.of(context).size.height * 0.33,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // 첫 번째 줄
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -196,7 +188,6 @@ class _PaintMapScreenState extends State<PaintMapScreen> {
                 _colorButton("기타 진열대", colorMap["기타 진열대"]!),
               ],
             ),
-            // 두 번째 줄
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -209,9 +200,8 @@ class _PaintMapScreenState extends State<PaintMapScreen> {
                 _colorButton("지우개", colorMap["기본"]!),
               ],
             ),
-            // 세 번째 줄 - 등록하기 버튼
             ElevatedButton(
-              onPressed: _submitData, // 등록하기 버튼을 누르면 POST 요청 실행
+              onPressed: _submitData,
               child: Text("등록하기", style: TextStyle(fontSize: 13)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.yellow,
@@ -227,7 +217,6 @@ class _PaintMapScreenState extends State<PaintMapScreen> {
     );
   }
 
-  // 색상 선택 버튼
   Widget _colorButton(String label, Color color) {
     return Column(
       children: [

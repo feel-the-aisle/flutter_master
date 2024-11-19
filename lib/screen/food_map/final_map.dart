@@ -83,6 +83,7 @@ class _FinalMapState extends State<FinalMap> {
       _speak(initialText);
       _speak("경로 설명: ${strPath.join(', ')}");
       _speak('목적지 위치: $endPosition');
+      _speak('${strPath.join(', ')}한 후 $endPosition');
     } else {
       throw Exception('Failed to load path data');
     }
