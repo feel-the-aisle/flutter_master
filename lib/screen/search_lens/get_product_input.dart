@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:probono_project/screen/search_lens/get_pName_input.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../../layout/touchpad_map11.dart';
 
 class GetProductInput extends StatefulWidget {
@@ -13,8 +14,6 @@ class GetProductInput extends StatefulWidget {
 
 class _GetProductInputState extends State<GetProductInput> {
   final FlutterTts tts = FlutterTts();
-  late IO.Socket _socket;
-
   String _productKind = ''; // 상품 종류 변수
   String _confirmationText = ''; // 확인 문구 담기는 변수
   String language = "ko-KR"; // tts: 한국어로 설정
@@ -27,7 +26,6 @@ class _GetProductInputState extends State<GetProductInput> {
   @override
   void initState() {
     super.initState();
-    _initializeSocket();
     _speak("라면, 과자, 음료수 중 찾을 상품의 종류를 말씀해주세요!");
   }
 
@@ -40,38 +38,22 @@ class _GetProductInputState extends State<GetProductInput> {
     await tts.speak(text);
   }
 
-  void _initializeSocket() {
-    _socket = IO.io(
-      'http://15.165.246.238:8080',
-      IO.OptionBuilder()
-          .setTransports(['websocket']) // 웹소켓만 사용
-          .disableAutoConnect() // 자동 연결 비활성화
-          .build(),
-    );
+  Future<void> _sendProductKind(String productKind) async {
+    try {
+      var response = await http.post(
+        Uri.parse('http://15.165.246.238:8080/detect-products/load_model'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"category": productKind}),
+      );
 
-    _socket.connect(); // 소켓 연결
-
-    _socket.onConnect((_) {
-      print('Connected to WebSocket server');
-    });
-
-    _socket.onConnectError((error) {
-      print('Connection Error: $error');
-    });
-
-    _socket.onError((error) {
-      print('Error: $error');
-    });
-
-    _socket.onDisconnect((_) {
-      print('Disconnected from WebSocket server');
-    });
-  }
-
-  void _sendProductKind(String productKind) {
-    // 서버에 "request_class" 이벤트로 메시지 전송
-    _socket.emit('request_class', {'class_name': productKind});
-    print('Sent product_kind: $productKind');
+      if (response.statusCode == 200) {
+        print('Sent category: $productKind');
+      } else {
+        print('Failed to send category: ${response.body}');
+      }
+    } catch (e) {
+      print('Error sending category: $e');
+    }
   }
 
   void _updateRecognizedText(String text) {
@@ -85,8 +67,8 @@ class _GetProductInputState extends State<GetProductInput> {
 
   void _handleConfirmation(bool isConfirmed) async {
     if (isConfirmed) {
-      // 소켓을 통해 _productKind 값을 백엔드로 전송
-      _sendProductKind(_productKind);
+      // HTTP POST request to send _productKind to the server
+      await _sendProductKind(_productKind);
 
       await Future.delayed(Duration(seconds: 1)); // 1초 지연
       Navigator.push(
@@ -108,7 +90,6 @@ class _GetProductInputState extends State<GetProductInput> {
 
   @override
   void dispose() {
-    _socket.dispose(); // 소켓 연결 해제
     tts.stop(); // TTS 중지
     super.dispose();
   }

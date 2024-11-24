@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:probono_project/screen/search_lens/product_cam1.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../../layout/touchpad_map11.dart';
 
 class GetpNameCam extends StatefulWidget {
@@ -13,8 +14,6 @@ class GetpNameCam extends StatefulWidget {
 
 class _GetpNameCamState extends State<GetpNameCam> {
   final FlutterTts tts = FlutterTts();
-  late IO.Socket _socket;
-
   String _productName = ''; // 상품 이름 변수
   String _confirmationText = ''; // 확인 문구 담기는 변수
   String language = "ko-KR"; // tts: 한국어로 설정
@@ -27,42 +26,7 @@ class _GetpNameCamState extends State<GetpNameCam> {
   @override
   void initState() {
     super.initState();
-    _initializeSocket();
     _speak("찾을 상품의 이름을 말씀해주세요!");
-  }
-
-  void _initializeSocket() {
-    _socket = IO.io(
-      'http://15.165.246.238:8080',
-      IO.OptionBuilder()
-          .setTransports(['websocket']) // 웹소켓만 사용
-          .disableAutoConnect() // 자동 연결 비활성화
-          .build(),
-    );
-
-    _socket.connect(); // 소켓 연결
-
-    _socket.onConnect((_) {
-      print('Connected to WebSocket server');
-    });
-
-    _socket.onConnectError((error) {
-      print('Connection Error: $error');
-    });
-
-    _socket.onError((error) {
-      print('Error: $error');
-    });
-
-    _socket.onDisconnect((_) {
-      print('Disconnected from WebSocket server');
-    });
-  }
-
-  void _sendProductName(String productName) {
-    // 서버에 "request_class" 이벤트로 메시지 전송
-    _socket.emit('product_name', {'product_name': productName});
-    print('Sent product_name: $productName');
   }
 
   Future<void> _speak(String text) async {
@@ -72,6 +36,24 @@ class _GetpNameCamState extends State<GetpNameCam> {
     await tts.setVolume(volume);
     await tts.setPitch(pitch);
     await tts.speak(text);
+  }
+
+  Future<void> _sendProductName(String productName) async {
+    try {
+      var response = await http.post(
+        Uri.parse('http://15.165.246.238:8080/detect-products/set_class'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"class_name": productName}),
+      );
+
+      if (response.statusCode == 200) {
+        print('Sent class_name: $productName');
+      } else {
+        print('Failed to send class_name: ${response.body}');
+      }
+    } catch (e) {
+      print('Error sending class_name: $e');
+    }
   }
 
   void _updateRecognizedText(String text) {
@@ -85,8 +67,8 @@ class _GetpNameCamState extends State<GetpNameCam> {
 
   void _handleConfirmation(bool isConfirmed) async {
     if (isConfirmed) {
-      // 소켓을 통해 _productName 값을 백엔드로 전송
-      _sendProductName(_productName);
+      // HTTP POST request to send _productName to the server
+      await _sendProductName(_productName);
 
       await Future.delayed(Duration(seconds: 1)); // 1초 지연
       Navigator.push(
@@ -108,7 +90,6 @@ class _GetpNameCamState extends State<GetpNameCam> {
 
   @override
   void dispose() {
-    _socket.dispose(); // 소켓 연결 해제
     tts.stop(); // TTS 중지
     super.dispose();
   }

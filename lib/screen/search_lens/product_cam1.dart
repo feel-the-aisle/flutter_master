@@ -1,16 +1,12 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:probono_project/layout/touchpad_cam.dart';  // Make sure this is the correct path
-import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'dart:async';
+import 'package:probono_project/layout/touchpad_cam.dart';
+import 'package:http/http.dart' as http;
 
 class ProductCam1 extends StatefulWidget {
-  final String productName;  // Add the productName parameter
-
-  // Update constructor to accept productName
+  final String productName;
   ProductCam1({required this.productName});
 
   @override
@@ -19,130 +15,120 @@ class ProductCam1 extends StatefulWidget {
 
 class _ProductCam1State extends State<ProductCam1> {
   CameraController? _cameraController;
-  late IO.Socket _socket;
-  bool _isStreaming = false;
-  Timer? _frameTimer;
-  String _currentQuadrant = '';  // Quadrant variable
+  String _currentQuadrant = '';
+  XFile? _lastCapturedImage; // 마지막으로 촬영된 이미지 저장
 
   @override
   void initState() {
     super.initState();
     _initializeCamera();
-    _initializeSocket();
   }
 
   @override
   void dispose() {
     _cameraController?.dispose();
-    _socket.dispose();
-    _frameTimer?.cancel();
     super.dispose();
   }
 
-  void _initializeCamera() async {
-    final cameras = await availableCameras();
-    final camera = cameras.first;
-
-    _cameraController = CameraController(
-      camera,
-      ResolutionPreset.medium,
-      enableAudio: false,
-    );
-
-    await _cameraController?.initialize();
-    setState(() {});
-
-    _startStreaming();
-
-    _cameraController?.startImageStream((CameraImage image) {
-      if (_isStreaming) {
-        _scheduleFrameTransmission(image);
+  Future<void> _initializeCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        print('No cameras available');
+        return;
       }
-    });
+
+      _cameraController = CameraController(
+        cameras.first,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
+
+      await _cameraController?.initialize();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error initializing camera: $e');
+    }
   }
 
-  void _initializeSocket() {
-    _socket = IO.io('http://15.165.246.238:8080', IO.OptionBuilder()
-        .setTransports(['websocket'])
-        .disableAutoConnect()
-        .build());
+  // 사진 촬영 메소드
+  Future<void> _capturePhoto() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      print('Camera not initialized');
+      return;
+    }
 
-    _socket.connect();
-
-    _socket.onConnect((_) {
-      print('Connected to WebSocket server');
-    });
-
-    _socket.onDisconnect((_) {
-      print('Disconnected from WebSocket server');
-    });
-
-    _socket.on('video_response', (data) {
-      print('Received response: $data');
+    try {
+      final XFile photo = await _cameraController!.takePicture();
       setState(() {
-        _currentQuadrant = _extractQuadrant(data);  // Update the quadrant when data is received
+        _lastCapturedImage = photo; // 촬영된 이미지 저장
       });
-    });
-  }
-
-  String _extractQuadrant(dynamic data) {
-    List<dynamic> detectedObjects = data['detected_objects'];
-    if (detectedObjects.isNotEmpty) {
-      return detectedObjects[0]['quadrant'];
+    } catch (e) {
+      print('Error capturing photo: $e');
     }
-    return 'Unknown';
   }
 
-  void _scheduleFrameTransmission(CameraImage image) {
-    if (_frameTimer?.isActive ?? false) return;
-
-    _frameTimer = Timer(Duration(seconds: 3), () {
-      _processCameraImage(image);
-    });
-  }
-
-  void _processCameraImage(CameraImage image) {
-    final List<int> yuvBytes = _concatenatePlanes(image.planes);
-    final Uint8List imageBytes = Uint8List.fromList(yuvBytes);
-    final String base64Image = base64Encode(imageBytes);
-
-    print('Frame Width: ${image.width}, Frame Height: ${image.height}');
-
-    _socket.emit('frame', base64Decode(base64Image));
-  }
-
-  List<int> _concatenatePlanes(List<Plane> planes) {
-    final WriteBuffer allBytes = WriteBuffer();
-    for (Plane plane in planes) {
-      allBytes.putUint8List(plane.bytes);
+  // 서버로 사진 전송 메소드
+  Future<void> _sendPhotoToServer() async {
+    if (_lastCapturedImage == null) {
+      print('No captured image available');
+      return;
     }
-    return allBytes.done().buffer.asUint8List();
+
+    try {
+      // 이미지를 base64로 인코딩
+      final Uint8List imageBytes = await _lastCapturedImage!.readAsBytes();
+      final String base64Image = base64Encode(imageBytes);
+
+      // HTTP POST 요청 보내기
+      final response = await http.post(
+        Uri.parse('http://15.165.246.238:8080/detect-products/detect'),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "image": base64Image,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final decodedResponse = jsonDecode(response.body);
+        setState(() {
+          _currentQuadrant = decodedResponse['quadrant'];
+        });
+      } else {
+        print('Server error: ${response.statusCode}');
+        print('Response body: ${response.body}');
+      }
+    } catch (e) {
+      print('Error sending photo: $e');
+    }
   }
 
-  void _startStreaming() {
-    setState(() {
-      _isStreaming = true;
-    });
+  // 터치패드 탭 핸들러
+  void _handleTouchpadTap() async {
+    await _capturePhoto(); // 먼저 사진 촬영
+    await _sendPhotoToServer(); // 그 다음 서버로 전송
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-
         title: Text('상품 구별하기'),
       ),
-      body: Stack(  // Stack allows layering
+      body: Stack(
         children: [
-          // Camera Preview (bottom layer)
           if (_cameraController != null && _cameraController!.value.isInitialized)
             Positioned(
               left: 0,
               right: 0,
               top: 0,
-              height: MediaQuery.of(context).size.height * 0.65,  // Adjust the camera height to 60% of the screen
+              height: MediaQuery.of(context).size.height * 0.65,
               child: FittedBox(
-                fit: BoxFit.cover,  // Cover the entire available space
+                fit: BoxFit.cover,
                 child: SizedBox(
                   width: _cameraController!.value.previewSize!.width,
                   height: _cameraController!.value.previewSize!.height,
@@ -151,37 +137,38 @@ class _ProductCam1State extends State<ProductCam1> {
               ),
             ),
 
-          // Black SizedBox for displaying product name and quadrant (overlay on the camera preview)
           Positioned(
-            bottom: 230,  // Adjust position of the black box
-            left: MediaQuery.of(context).size.width * 0.2,  // Adjust the left and right padding to reduce width
-            right: MediaQuery.of(context).size.width * 0.2, // Adjust the width
+            bottom: 270,
+            left: MediaQuery.of(context).size.width * 0.2,
+            right: MediaQuery.of(context).size.width * 0.2,
             child: Container(
               padding: EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),  // Black background with transparency
+                color: Colors.black.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                "'${widget.productName}'의 위치는 \n 진열대 ${_currentQuadrant}입니다.",  // Display productName and quadrant
+                "'${widget.productName}'의 위치는 \n 진열대 ${_currentQuadrant}입니다.",
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.yellow,  // Yellow text color
+                  color: Colors.yellow,
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
           ),
 
-          // Touchpad Overlay (on top of the camera preview)
           Positioned(
-            bottom: 0,  // Stick to the bottom
+            bottom: 0,
             left: 0,
             right: 0,
             child: Container(
-              height: MediaQuery.of(context).size.height * 0.3,  // Adjust the height of the touchpad
-              child: TouchPad_Cam(productName: widget.productName),  // Pass productName to the touchpad
+              height: MediaQuery.of(context).size.height * 0.3,
+              child: TouchPad_Cam(
+                productName: widget.productName,
+                onTap: _handleTouchpadTap,
+              ),
             ),
           ),
         ],
